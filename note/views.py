@@ -1,6 +1,6 @@
 import re
+from django.contrib import messages
 from django.db.models import Q
-from django.db.utils import OperationalError
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from .models import Note
@@ -16,16 +16,15 @@ class NoteListView(ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        # 关键词搜索：优先正则匹配，失败则降级为模糊搜索
         q = self.request.GET.get("q", "").strip()
         if q:
+            # 优先正则匹配，失败则降级为模糊搜索
             try:
+                re.compile(q)
                 queryset = queryset.filter(
                     Q(title__regex=q) | Q(content__regex=q)
                 )
-                # 强制求值以捕获正则错误
-                queryset.exists()
-            except (re.error, OperationalError):
+            except re.error:
                 queryset = super().get_queryset().filter(
                     Q(title__icontains=q) | Q(content__icontains=q)
                 )
@@ -61,6 +60,11 @@ class NoteCreateView(CreateView):
     template_name = "note/note_form.html"
     success_url = reverse_lazy("note_list")
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"笔记「{self.object.title}」创建成功")
+        return response
+
 
 class NoteUpdateView(UpdateView):
     """编辑笔记"""
@@ -69,6 +73,11 @@ class NoteUpdateView(UpdateView):
     template_name = "note/note_form.html"
     success_url = reverse_lazy("note_list")
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"笔记「{self.object.title}」更新成功")
+        return response
+
 
 class NoteDeleteView(DeleteView):
     """删除笔记"""
@@ -76,3 +85,7 @@ class NoteDeleteView(DeleteView):
     template_name = "note/note_confirm_delete.html"
     success_url = reverse_lazy("note_list")
     context_object_name = "note"
+
+    def form_valid(self, form):
+        messages.success(self.request, f"笔记「{self.object.title}」已删除")
+        return super().form_valid(form)

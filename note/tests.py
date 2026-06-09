@@ -1,3 +1,4 @@
+import time
 from django.test import TestCase
 from django.urls import reverse
 from .models import Note
@@ -16,6 +17,7 @@ class NoteModelTest(TestCase):
     def test_default_ordering(self):
         """测试默认按更新时间倒序排列"""
         n1 = Note.objects.create(title="旧笔记", content="先创建的")
+        time.sleep(0.01)  # 确保时间戳不同
         n2 = Note.objects.create(title="新笔记", content="后创建的")
         notes = list(Note.objects.all())
         self.assertEqual(notes[0], n2)  # 最新排第一
