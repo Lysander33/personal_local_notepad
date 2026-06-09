@@ -1,0 +1,48 @@
+{% extends "note/base.html" %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'note_list' %}">首页</a></li>
+        {% if object.pk %}
+            <li class="breadcrumb-item"><a href="{% url 'note_detail' note.pk %}">{{ object.title }}</a></li>
+            <li class="breadcrumb-item active">编辑</li>
+        {% else %}
+            <li class="breadcrumb-item active">新建笔记</li>
+        {% endif %}
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4 class="mb-0">{% if object.pk %}编辑笔记{% else %}新建笔记{% endif %}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.content.id_for_label }}" class="form-label">{{ form.content.label }}</label>
+                        {{ form.content }}
+                        {% if form.content.errors %}
+                            <div class="text-danger small">{{ form.content.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">保存</button>
+                        <a href="{% url 'note_list' %}" class="btn btn-outline-secondary">取消</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
