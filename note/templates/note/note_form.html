@@ -1,48 +1,76 @@
 {% extends "note/base.html" %}
 
-{% block content %}
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'note_list' %}">首页</a></li>
-        {% if object.pk %}
-            <li class="breadcrumb-item"><a href="{% url 'note_detail' note.pk %}">{{ object.title }}</a></li>
-            <li class="breadcrumb-item active">编辑</li>
-        {% else %}
-            <li class="breadcrumb-item active">新建笔记</li>
-        {% endif %}
-    </ol>
-</nav>
+{% block title %}{% if object.pk %}编辑「{{ object.title }}」{% else %}新建笔记{% endif %} — 个人记事本{% endblock %}
 
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h4 class="mb-0">{% if object.pk %}编辑笔记{% else %}新建笔记{% endif %}</h4>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
-                        {{ form.title }}
-                        {% if form.title.errors %}
-                            <div class="text-danger small">{{ form.title.errors }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <label for="{{ form.content.id_for_label }}" class="form-label">{{ form.content.label }}</label>
-                        {{ form.content }}
-                        {% if form.content.errors %}
-                            <div class="text-danger small">{{ form.content.errors }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">保存</button>
-                        <a href="{% url 'note_list' %}" class="btn btn-outline-secondary">取消</a>
-                    </div>
-                </form>
-            </div>
+{% block content %}
+
+<div class="form-container">
+    <!-- 面包屑 -->
+    <div class="detail-breadcrumb">
+        <a href="{% url 'note_list' %}">全部笔记</a>
+        {% if object.pk %}
+            <span class="sep">/</span>
+            <a href="{% url 'note_detail' object.pk %}">{{ object.title }}</a>
+            <span class="sep">/</span>
+            <span>编辑</span>
+        {% else %}
+            <span class="sep">/</span>
+            <span>新建笔记</span>
+        {% endif %}
+    </div>
+
+    <div class="form-card">
+        <div class="form-header">
+            <h2>{% if object.pk %}编辑笔记{% else %}新建笔记{% endif %}</h2>
         </div>
+
+        <form method="post" id="noteForm">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="error-text">{{ form.title.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.content.id_for_label }}">{{ form.content.label }}</label>
+                {{ form.content }}
+                <div class="char-count">
+                    字数：<strong id="charCount">0</strong>
+                </div>
+                {% if form.content.errors %}
+                    <div class="error-text">{{ form.content.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">&#x2714;&#xFE0F; 保存</button>
+                {% if object.pk %}
+                    <a href="{% url 'note_detail' object.pk %}" class="btn btn-secondary">取消</a>
+                {% else %}
+                    <a href="{% url 'note_list' %}" class="btn btn-secondary">取消</a>
+                {% endif %}
+            </div>
+        </form>
     </div>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+    (function() {
+        var textarea = document.getElementById('{{ form.content.id_for_label }}');
+        var counter = document.getElementById('charCount');
+
+        function updateCount() {
+            var len = textarea.value.length;
+            counter.textContent = len;
+        }
+
+        updateCount();
+        textarea.addEventListener('input', updateCount);
+    })();
 {% endblock %}

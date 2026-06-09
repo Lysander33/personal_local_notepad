@@ -1,40 +1,108 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>个人记事本</title>
+    <title>{% block title %}个人记事本{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'note/css/style.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <!-- 导航栏 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'note_list' %}">个人记事本</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'note_list' %}">首页</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'note_create' %}">新建笔记</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:index' %}">管理后台</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
 
-    <!-- 主内容区 -->
-    <div class="container">
-        {% block content %}{% endblock %}
+<!-- ========== 桌面端侧边栏 ========== -->
+<aside class="app-sidebar" id="appSidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">&#x270E;</div>
+        <span class="sidebar-brand-text">个人记事本</span>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <ul class="sidebar-nav">
+        <li>
+            <a href="{% url 'note_list' %}"
+               class="{% if request.resolver_match.url_name == 'note_list' and not request.GET.q %}active{% endif %}">
+                <span class="nav-icon">&#x1F4C4;</span> 全部笔记
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'note_create' %}"
+               class="{% if request.resolver_match.url_name == 'note_create' %}active{% endif %}">
+                <span class="nav-icon">&#x2795;</span> 新建笔记
+            </a>
+        </li>
+    </ul>
+
+    {% block sidebar_extra %}{% endblock %}
+
+    <div class="sidebar-footer">
+        <div class="sidebar-stats">
+            <div class="sidebar-stat">
+                <span>笔记总数</span>
+                <strong>{% block sidebar_count %}—{% endblock %}</strong>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- 移动端侧边栏遮罩 -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- ========== 移动端顶部导航 ========== -->
+<nav class="app-mobile-nav">
+    <span class="navbar-brand">&#x270E; 个人记事本</span>
+    <button class="navbar-toggler" id="menuToggle" aria-label="打开菜单">&#x2630;</button>
+</nav>
+
+<!-- ========== 主内容区 ========== -->
+<main class="app-main">
+    {% block content %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    /* 移动端侧边栏开关 */
+    const sidebar = document.getElementById('appSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggle = document.getElementById('menuToggle');
+
+    function openSidebar() {
+        sidebar.classList.add('open');
+        overlay.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    toggle.addEventListener('click', openSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    /* 排序下拉菜单 */
+    document.querySelectorAll('.sort-dropdown .btn-sort').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var menu = this.parentElement.querySelector('.sort-menu');
+            var isOpen = menu.classList.contains('show');
+            /* 关闭所有 */
+            document.querySelectorAll('.sort-menu.show').forEach(function(m) {
+                m.classList.remove('show');
+            });
+            if (!isOpen) menu.classList.add('show');
+        });
+    });
+
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.sort-menu.show').forEach(function(m) {
+            m.classList.remove('show');
+        });
+    });
+
+    {% block extra_js %}{% endblock %}
+</script>
+
 </body>
 </html>

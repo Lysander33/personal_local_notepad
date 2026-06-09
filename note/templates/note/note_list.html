@@ -1,102 +1,143 @@
 {% extends "note/base.html" %}
 
+{% block title %}{% if current_q %}搜索「{{ current_q }}」{% else %}全部笔记{% endif %} — 个人记事本{% endblock %}
+
+{% block sidebar_count %}{{ page_obj.paginator.count|default:"0" }}{% endblock %}
+
 {% block content %}
-<!-- 搜索与排序栏 -->
-<div class="row mb-4">
-    <div class="col-md-8">
-        <form method="get" class="d-flex">
-            <input
-                type="text" name="q" value="{{ current_q }}"
-                class="form-control me-2" placeholder="搜索笔记（支持正则表达式）..."
-            >
-            <button type="submit" class="btn btn-primary">搜索</button>
-            {% if current_q %}
-                <a href="{% url 'note_list' %}" class="btn btn-outline-secondary ms-2">清除</a>
-            {% endif %}
-        </form>
+
+<!-- 页面头部 -->
+<div class="page-header">
+    <h1>{% if current_q %}搜索结果{% else %}全部笔记{% endif %}</h1>
+    {% if current_q %}
+        <p>关键词「{{ current_q }}」匹配 {{ page_obj.paginator.count }} 篇笔记</p>
+    {% else %}
+        <p>共 {{ page_obj.paginator.count|default:"0" }} 篇笔记</p>
+    {% endif %}
+</div>
+
+<!-- 搜索与排序 -->
+<div class="search-bar">
+    <div class="search-input-wrap">
+        <span class="search-icon">&#x1F50D;</span>
+        <input type="text" name="q" id="searchInput"
+               value="{{ current_q }}" placeholder="搜索笔记（支持正则表达式）...">
     </div>
-    <div class="col-md-4">
-        <div class="dropdown text-end">
-            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                排序方式
-            </button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item {% if current_sort == '-updated_at' %}active{% endif %}" href="?q={{ current_q }}&sort=-updated_at">更新时间 ↓</a></li>
-                <li><a class="dropdown-item {% if current_sort == 'updated_at' %}active{% endif %}" href="?q={{ current_q }}&sort=updated_at">更新时间 ↑</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item {% if current_sort == '-created_at' %}active{% endif %}" href="?q={{ current_q }}&sort=-created_at">创建时间 ↓</a></li>
-                <li><a class="dropdown-item {% if current_sort == 'created_at' %}active{% endif %}" href="?q={{ current_q }}&sort=created_at">创建时间 ↑</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item {% if current_sort == 'title' %}active{% endif %}" href="?q={{ current_q }}&sort=title">标题 A-Z</a></li>
-                <li><a class="dropdown-item {% if current_sort == '-title' %}active{% endif %}" href="?q={{ current_q }}&sort=-title">标题 Z-A</a></li>
-            </ul>
+    <button type="button" class="btn-search" id="searchBtn">搜索</button>
+    {% if current_q %}
+        <a href="{% url 'note_list' %}?sort={{ current_sort }}" class="btn-clear">清除</a>
+    {% endif %}
+    <div class="sort-dropdown">
+        <button type="button" class="btn-sort">
+            &#x2B07;&#xFE0F; 排序
+        </button>
+        <div class="sort-menu">
+            <a href="?q={{ current_q }}&sort=-updated_at"
+               class="{% if current_sort == '-updated_at' %}active{% endif %}">更新时间 ↓</a>
+            <a href="?q={{ current_q }}&sort=updated_at"
+               class="{% if current_sort == 'updated_at' %}active{% endif %}">更新时间 ↑</a>
+            <div class="sort-divider"></div>
+            <a href="?q={{ current_q }}&sort=-created_at"
+               class="{% if current_sort == '-created_at' %}active{% endif %}">创建时间 ↓</a>
+            <a href="?q={{ current_q }}&sort=created_at"
+               class="{% if current_sort == 'created_at' %}active{% endif %}">创建时间 ↑</a>
+            <div class="sort-divider"></div>
+            <a href="?q={{ current_q }}&sort=title"
+               class="{% if current_sort == 'title' %}active{% endif %}">标题 A—Z</a>
+            <a href="?q={{ current_q }}&sort=-title"
+               class="{% if current_sort == '-title' %}active{% endif %}">标题 Z—A</a>
         </div>
     </div>
 </div>
 
 <!-- 笔记列表 -->
 {% if notes %}
-    <div class="row row-cols-1 g-3">
+    <div class="note-grid">
         {% for note in notes %}
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <a href="{% url 'note_detail' note.pk %}" class="text-decoration-none text-dark">
-                                {{ note.title }}
-                            </a>
-                        </h5>
-                        <p class="card-text text-muted small">
-                            {{ note.content|truncatechars:150 }}
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-secondary">
-                                创建于 {{ note.created_at|date:"Y-m-d H:i" }}
-                                | 更新于 {{ note.updated_at|date:"Y-m-d H:i" }}
-                            </small>
-                            <div>
-                                <a href="{% url 'note_update' note.pk %}" class="btn btn-sm btn-outline-warning">编辑</a>
-                                <a href="{% url 'note_delete' note.pk %}" class="btn btn-sm btn-outline-danger">删除</a>
-                            </div>
-                        </div>
-                    </div>
+            <a href="{% url 'note_detail' note.pk %}" class="note-card">
+                <div class="note-card-title">
+                    <span>{{ note.title }}</span>
                 </div>
-            </div>
+                {% if note.content %}
+                    <p class="note-card-summary">{{ note.content|truncatechars:180 }}</p>
+                {% endif %}
+                <div class="note-card-meta">
+                    <span class="note-card-time">
+                        <span>&#x1F552;</span>
+                        {{ note.updated_at|date:"Y-m-d H:i" }}
+                    </span>
+                    <span class="note-card-actions" onclick="event.preventDefault(); event.stopPropagation();">
+                        <a href="{% url 'note_update' note.pk %}" class="btn-icon edit"
+                           title="编辑">&#x270F;&#xFE0F; 编辑</a>
+                        <a href="{% url 'note_delete' note.pk %}" class="btn-icon delete"
+                           title="删除">&#x1F5D1;&#xFE0F; 删除</a>
+                    </span>
+                </div>
+            </a>
         {% endfor %}
     </div>
 
     <!-- 分页 -->
     {% if is_paginated %}
-        <nav class="mt-4">
-            <ul class="pagination justify-content-center">
-                {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?q={{ current_q }}&sort={{ current_sort }}&page={{ page_obj.previous_page_number }}">上一页</a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">上一页</span></li>
-                {% endif %}
-
-                <li class="page-item active">
-                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-                </li>
-
-                {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?q={{ current_q }}&sort={{ current_sort }}&page={{ page_obj.next_page_number }}">下一页</a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">下一页</span></li>
-                {% endif %}
-            </ul>
-        </nav>
+        <div class="pagination-wrap">
+            {% if page_obj.has_previous %}
+                <a href="?q={{ current_q }}&sort={{ current_sort }}&page={{ page_obj.previous_page_number }}"
+                   class="page-btn">&#x2190; 上一页</a>
+            {% else %}
+                <button class="page-btn" disabled>&#x2190; 上一页</button>
+            {% endif %}
+            <span class="page-info">
+                第 <strong>{{ page_obj.number }}</strong> / <strong>{{ page_obj.paginator.num_pages }}</strong> 页
+            </span>
+            {% if page_obj.has_next %}
+                <a href="?q={{ current_q }}&sort={{ current_sort }}&page={{ page_obj.next_page_number }}"
+                   class="page-btn">下一页 &#x2192;</a>
+            {% else %}
+                <button class="page-btn" disabled>下一页 &#x2192;</button>
+            {% endif %}
+        </div>
     {% endif %}
+
 {% else %}
     <!-- 空状态 -->
-    <div class="text-center py-5">
-        <h3 class="text-muted mb-3">还没有笔记</h3>
-        <p class="text-secondary">点击右上角「新建笔记」开始吧！</p>
-        <a href="{% url 'note_create' %}" class="btn btn-primary btn-lg">新建第一篇笔记</a>
+    <div class="empty-state">
+        <span class="empty-icon">{% if current_q %}&#x1F50D;{% else %}&#x1F4DD;{% endif %}</span>
+        {% if current_q %}
+            <h3>未找到匹配的笔记</h3>
+            <p>试试其他关键词或正则表达式</p>
+            <a href="{% url 'note_list' %}" class="btn-create">查看全部笔记</a>
+        {% else %}
+            <h3>还没有笔记</h3>
+            <p>写下你的第一条笔记吧</p>
+            <a href="{% url 'note_create' %}" class="btn-create">新建第一篇笔记</a>
+        {% endif %}
     </div>
 {% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+    /* 搜索提交 */
+    (function() {
+        var input = document.getElementById('searchInput');
+        var btn = document.getElementById('searchBtn');
+        var currentSort = '{{ current_sort }}';
+
+        function doSearch() {
+            var q = input.value.trim();
+            var url = '{% url "note_list" %}';
+            var params = [];
+            if (q) params.push('q=' + encodeURIComponent(q));
+            if (currentSort && currentSort !== '-updated_at') {
+                params.push('sort=' + encodeURIComponent(currentSort));
+            }
+            if (params.length) url += '?' + params.join('&');
+            window.location.href = url;
+        }
+
+        btn.addEventListener('click', doSearch);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') doSearch();
+        });
+    })();
 {% endblock %}
