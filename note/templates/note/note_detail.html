@@ -21,7 +21,7 @@
             <span>&#x1F4DD; 更新于 {{ note.updated_at|date:"Y-m-d H:i" }}</span>
         </div>
 
-        <div class="detail-content">{{ note.content }}</div>
+        <div class="detail-content">{{ note.content_html|safe }}</div>
 
         <div class="detail-actions">
             <a href="{% url 'note_update' note.pk %}" class="btn btn-primary">&#x270F;&#xFE0F; 编辑</a>

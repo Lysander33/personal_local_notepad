@@ -1,68 +1,86 @@
 import time
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 from .models import Note
 
 
 class NoteModelTest(TestCase):
-    """Note 模型测试"""
+    def setUp(self):
+        self.user = User.objects.create_user("testuser", password="testpass")
 
     def test_create_note(self):
-        """测试创建笔记"""
-        note = Note.objects.create(title="测试笔记", content="这是测试内容")
+        note = Note.objects.create(title="测试笔记", content="这是测试内容", owner=self.user)
         self.assertEqual(str(note), "测试笔记")
         self.assertIsNotNone(note.created_at)
         self.assertIsNotNone(note.updated_at)
 
+    def test_content_html(self):
+        note = Note.objects.create(title="MD", content="**bold**", owner=self.user)
+        self.assertIn("<strong>bold</strong>", note.content_html)
+
     def test_default_ordering(self):
-        """测试默认按更新时间倒序排列"""
-        n1 = Note.objects.create(title="旧笔记", content="先创建的")
-        time.sleep(0.01)  # 确保时间戳不同
-        n2 = Note.objects.create(title="新笔记", content="后创建的")
+        n1 = Note.objects.create(title="旧笔记", content="先创建的", owner=self.user)
+        time.sleep(0.01)
+        n2 = Note.objects.create(title="新笔记", content="后创建的", owner=self.user)
         notes = list(Note.objects.all())
-        self.assertEqual(notes[0], n2)  # 最新排第一
+        self.assertEqual(notes[0], n2)
 
 
 class NoteViewTest(TestCase):
-    """Note 视图测试"""
-
     def setUp(self):
-        self.note = Note.objects.create(title="测试笔记", content="测试内容")
+        self.user = User.objects.create_user("testuser", password="testpass")
+        self.other_user = User.objects.create_user("other", password="testpass")
+        self.client.login(username="testuser", password="testpass")
+        self.note = Note.objects.create(title="测试笔记", content="测试内容", owner=self.user)
 
     # ---- 列表视图 ----
 
     def test_list_view_status(self):
-        """测试列表页正常访问"""
         resp = self.client.get(reverse("note_list"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "测试笔记")
 
+    def test_list_view_requires_login(self):
+        self.client.logout()
+        resp = self.client.get(reverse("note_list"))
+        self.assertRedirects(resp, reverse("login") + "?next=" + reverse("note_list"))
+
     def test_list_view_pagination(self):
-        """测试分页功能"""
         for i in range(25):
-            Note.objects.create(title=f"笔记{i}", content=f"内容{i}")
+            Note.objects.create(title=f"笔记{i}", content=f"内容{i}", owner=self.user)
         resp = self.client.get(reverse("note_list"))
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.context["is_paginated"])
         self.assertEqual(len(resp.context["notes"]), 20)
 
+    # ---- 用户隔离 ----
+
+    def test_notes_isolated_by_user(self):
+        Note.objects.create(title="他人的笔记", content="不应该看到", owner=self.other_user)
+        resp = self.client.get(reverse("note_list"))
+        self.assertContains(resp, "测试笔记")
+        self.assertNotContains(resp, "他人的笔记")
+
     # ---- 详情视图 ----
 
     def test_detail_view(self):
-        """测试详情页正常访问"""
         resp = self.client.get(reverse("note_detail", args=[self.note.pk]))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "测试内容")
 
+    def test_detail_view_other_user_forbidden(self):
+        other_note = Note.objects.create(title="别人的", content="私密", owner=self.other_user)
+        resp = self.client.get(reverse("note_detail", args=[other_note.pk]))
+        self.assertEqual(resp.status_code, 404)
+
     # ---- 创建视图 ----
 
     def test_create_view_get(self):
-        """测试新建笔记页面"""
         resp = self.client.get(reverse("note_create"))
         self.assertEqual(resp.status_code, 200)
 
     def test_create_view_post(self):
-        """测试新建笔记提交"""
         resp = self.client.post(reverse("note_create"), {
             "title": "新笔记",
             "content": "新内容",
@@ -71,16 +89,15 @@ class NoteViewTest(TestCase):
         self.assertEqual(Note.objects.count(), 2)
         new_note = Note.objects.get(title="新笔记")
         self.assertEqual(new_note.content, "新内容")
+        self.assertEqual(new_note.owner, self.user)
 
     # ---- 更新视图 ----
 
     def test_update_view_get(self):
-        """测试编辑笔记页面"""
         resp = self.client.get(reverse("note_update", args=[self.note.pk]))
         self.assertEqual(resp.status_code, 200)
 
     def test_update_view_post(self):
-        """测试编辑笔记提交"""
         resp = self.client.post(
             reverse("note_update", args=[self.note.pk]),
             {"title": "已更新", "content": "更新内容"},
@@ -90,54 +107,82 @@ class NoteViewTest(TestCase):
         self.assertEqual(self.note.title, "已更新")
         self.assertEqual(self.note.content, "更新内容")
 
+    def test_update_other_user_forbidden(self):
+        other_note = Note.objects.create(title="别人的", content="私密", owner=self.other_user)
+        resp = self.client.get(reverse("note_update", args=[other_note.pk]))
+        self.assertEqual(resp.status_code, 404)
+
     # ---- 删除视图 ----
 
     def test_delete_view_get(self):
-        """测试删除确认页面"""
         resp = self.client.get(reverse("note_delete", args=[self.note.pk]))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "确认删除")
 
     def test_delete_view_post(self):
-        """测试删除笔记提交"""
         resp = self.client.post(reverse("note_delete", args=[self.note.pk]))
         self.assertRedirects(resp, reverse("note_list"))
         self.assertEqual(Note.objects.count(), 0)
 
+    def test_delete_other_user_forbidden(self):
+        other_note = Note.objects.create(title="别人的", content="私密", owner=self.other_user)
+        resp = self.client.post(reverse("note_delete", args=[other_note.pk]))
+        self.assertEqual(resp.status_code, 404)
+
     # ---- 搜索功能 ----
 
     def test_search_icontains(self):
-        """测试关键词模糊搜索"""
-        Note.objects.create(title="Python学习笔记", content="Django框架实践")
+        Note.objects.create(title="Python学习笔记", content="Django框架实践", owner=self.user)
         resp = self.client.get(reverse("note_list") + "?q=Python")
         self.assertContains(resp, "Python学习笔记")
         self.assertNotContains(resp, "测试笔记")
 
     def test_search_regex(self):
-        """测试正则表达式搜索"""
-        Note.objects.create(title="2024年度计划", content="")
+        Note.objects.create(title="2024年度计划", content="", owner=self.user)
         resp = self.client.get(reverse("note_list") + r"?q=\d{4}年")
         self.assertContains(resp, "2024年度计划")
 
     def test_invalid_regex_fallback(self):
-        """测试非法正则表达式自动降级为模糊搜索（不报500错误）"""
         resp = self.client.get(reverse("note_list") + "?q=[未闭合括号")
         self.assertEqual(resp.status_code, 200)
 
     # ---- 排序功能 ----
 
     def test_sort_by_created_at(self):
-        """测试按创建时间排序"""
-        n1 = Note.objects.create(title="B笔记", content="")
-        n2 = Note.objects.create(title="A笔记", content="")
+        n1 = Note.objects.create(title="B笔记", content="", owner=self.user)
+        n2 = Note.objects.create(title="A笔记", content="", owner=self.user)
         resp = self.client.get(reverse("note_list") + "?sort=created_at")
         notes = list(resp.context["notes"])
-        self.assertEqual(notes[0], self.note)  # 最早的排第一
+        self.assertEqual(notes[0], self.note)
 
     def test_sort_by_title(self):
-        """测试按标题字母排序"""
-        Note.objects.create(title="Z笔记", content="")
-        Note.objects.create(title="A笔记", content="")
+        Note.objects.create(title="Z笔记", content="", owner=self.user)
+        Note.objects.create(title="A笔记", content="", owner=self.user)
         resp = self.client.get(reverse("note_list") + "?sort=title")
         notes = list(resp.context["notes"])
         self.assertEqual(notes[0].title, "A笔记")
+
+
+class AuthViewTest(TestCase):
+    def test_login_page(self):
+        resp = self.client.get(reverse("login"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_register_page(self):
+        resp = self.client.get(reverse("register"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_register_creates_user(self):
+        resp = self.client.post(reverse("register"), {
+            "username": "newuser",
+            "password1": "Str0ngP@ssword!",
+            "password2": "Str0ngP@ssword!",
+        })
+        self.assertRedirects(resp, reverse("note_list"))
+        self.assertTrue(User.objects.filter(username="newuser").exists())
+
+    def test_register_redirects_authenticated(self):
+        User.objects.create_user("existing", password="testpass")
+        self.client.login(username="existing", password="testpass")
+        resp = self.client.get(reverse("register"))
+        self.assertRedirects(resp, reverse("note_list"))

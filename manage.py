@@ -15,6 +15,14 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+
+    from django.conf import settings
+    if settings.SECRET_KEY == "django-insecure-dev-fallback" and "runserver" in sys.argv:
+        import sys as _sys
+        _sys.stderr.write(
+            "\n[WARNING] 正在使用默认 SECRET_KEY，生产环境请通过 .env 文件设置随机密钥\n\n"
+        )
+
     execute_from_command_line(sys.argv)
 
 

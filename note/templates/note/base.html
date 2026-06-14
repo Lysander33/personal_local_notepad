@@ -37,12 +37,24 @@
     {% block sidebar_extra %}{% endblock %}
 
     <div class="sidebar-footer">
+        {% if user.is_authenticated %}
+            <div class="sidebar-user">
+                <span class="sidebar-user-avatar">&#x1F464;</span>
+                <span class="sidebar-user-name">{{ user.username }}</span>
+            </div>
+        {% endif %}
         <div class="sidebar-stats">
             <div class="sidebar-stat">
                 <span>笔记总数</span>
                 <strong>{% block sidebar_count %}—{% endblock %}</strong>
             </div>
         </div>
+        {% if user.is_authenticated %}
+            <form action="{% url 'logout' %}" method="post" style="margin-top:10px;">
+                {% csrf_token %}
+                <button type="submit" class="btn-logout">登出</button>
+            </form>
+        {% endif %}
     </div>
 </aside>
 

@@ -21,6 +21,15 @@ LOCAL_MODE = os.environ.get("LOCAL_MODE", "True").lower() in ("true", "1", "yes"
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"] if LOCAL_MODE else ["*"]
 
+# CSRF 可信来源（部署到非 localhost 时需要配置）
+_csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(",") if o.strip()]
+
+# 登录相关配置
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "note_list"
+LOGOUT_REDIRECT_URL = "login"
+
 
 # Application definition
 
